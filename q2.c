@@ -52,6 +52,8 @@ typedef struct ballInfo
     Rectangle *small;       //shrink booster
 
     bool spawned;       //booster call flag
+    bool sizeChanged;       //to avoid race conditions
+    int boosterSpawnDelayer;
 
 }ballInfo;
 
@@ -72,6 +74,8 @@ ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2, Rectangle *b, Recta
     pp.big = b;
     pp.small = s;
     pp.spawned = false;
+    pp.sizeChanged = false;
+    pp.boosterSpawnDelayer = 0;
     
     pp.ptr = malloc(sizeof(Rectangle));
     *(pp.ptr) = (Rectangle){ screenWidth/2, screenHeight/2 - 25, 25, 25 };
@@ -181,6 +185,7 @@ void* ballBoundariesCheck(void* info)          //thread
             obj->p2->x = 50-30;
             obj->p2->width = 30;
             obj->p2->height = 185;
+            obj->boosterSpawnDelayer = 0;
             obj->spawned = false;
             obj->left = false;
             obj->right = true;
@@ -203,6 +208,7 @@ void* ballBoundariesCheck(void* info)          //thread
             obj->p2->x = 50-30;
             obj->p2->width = 30;
             obj->p2->height = 185;
+            obj->boosterSpawnDelayer = 0;
             obj->spawned = false;
             obj->left = false;
             obj->right = true;
@@ -265,37 +271,41 @@ void* ballCollision(void* o)          //thread
             obj->right = true;
         }
         //==============================KINDA SUS========================================
-        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p1Contact)
+        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p1Contact && !obj->sizeChanged)
         {
             PlaySound(obj->good);
             obj->spawned = false;
             obj->big->x = -100;
             obj->big->y = -100;
             obj->p1->height += 50;
+            obj->sizeChanged = true;
         }
-        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p2Contact)
+        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p2Contact && !obj->sizeChanged)
         {
             PlaySound(obj->good);
             obj->spawned = false;
             obj->big->x = -100;
             obj->big->y = -100;
             obj->p2->height += 50;
+            obj->sizeChanged = true;
         }
-        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p1Contact)
+        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p1Contact && !obj->sizeChanged)
         {
             PlaySound(obj->bad);
             obj->spawned = false;
             obj->small->x = -200;
             obj->small->y = -200;
             obj->p1->height -= 50;
+            obj->sizeChanged = true;
         }
-        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p2Contact)
+        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p2Contact && !obj->sizeChanged)
         {
             PlaySound(obj->bad);
             obj->spawned = false;
             obj->small->x = -200;
             obj->small->y = -200;
             obj->p2->height -= 50;
+            obj->sizeChanged = true;
         }
 
         usleep(16000);
@@ -359,29 +369,34 @@ void* spawnBoosters(void* o)          //thread
     {
         if(!obj->spawned)
         {
-            obj->spawned = true;
-            srand(time(0));
-            int randomPositionX = getRandomNumber(screenWidth/2-20, screenWidth/2+20);
-
-            srand(time(0));
-            int randomPositionY = getRandomNumber(100, screenHeight - 100);
-
-            srand(time(0));
-            bool boostType = getRandomBool();
-
-            if(boostType)
+            obj->boosterSpawnDelayer++;
+            if(obj->boosterSpawnDelayer >= 500)
             {
-                obj->big->x = randomPositionX;
-                obj->big->y = randomPositionY;
-            }
-            else
-            {
-                obj->small->x = randomPositionX;
-                obj->small->y = randomPositionY;
-            }
+                obj->boosterSpawnDelayer = 0;
+                obj->sizeChanged = false;       //paddle ready for change in size
+                obj->spawned = true;
+                srand(time(0));
+                int randomPositionX = getRandomNumber(screenWidth/2-20, screenWidth/2+20);
 
+                srand(time(0));
+                int randomPositionY = getRandomNumber(100, screenHeight - 100);
+
+                srand(time(0));
+                bool boostType = getRandomBool();
+
+                if(boostType)
+                {
+                    obj->big->x = randomPositionX;
+                    obj->big->y = randomPositionY;
+                }
+                else
+                {
+                    obj->small->x = randomPositionX;
+                    obj->small->y = randomPositionY;
+                }
+
+            }
         }
-
         usleep(16000);
     }
 
@@ -559,18 +574,22 @@ int main(void)
         
             case 0:
             {
-                DrawRectangleRec(p1, WHITE);
-                DrawRectangleRec(p2, WHITE);
+                DrawRectangleRec(p1, GREEN);
+                DrawRectangleRec(p2, MAGENTA);
                 
                 DrawText( intToString(sc.p1), 50, 30, 25, WHITE);
                 DrawText( intToString(sc.p2), screenWidth - (50 + 25), 30, 25, WHITE);
 
                 if(!ballObj.start)
                 {
-                    DrawRectangleRec(mid, LIGHTGRAY);
+                    for (int y = 0; y < screenHeight; y += 20)
+                    {
+                        DrawRectangle(screenWidth / 2 - 1, y, 2, 10, LIGHTGRAY);
+                    }
 
-                    DrawText( "Round ", screenWidth/2 - 100, 30, 50, WHITE);
-                    DrawText( intToString(rounds), screenWidth/2 + 70, 30, 50, WHITE);
+                    Color roundColor = { 0, 255, 255, 255 };
+                    DrawText( "Round ", screenWidth/2 - 100, 30, 50, roundColor);
+                    DrawText( intToString(rounds), screenWidth/2 + 70, 30, 50, roundColor);
 
                     DrawRectangleRec(*(ballObj.ptr), WHITE);
 
@@ -584,7 +603,8 @@ int main(void)
                 {
                     if(startBlink <= 10)
                     {
-                        DrawText( "Start", screenWidth/2 - 200, screenHeight/2 - 150, 150, WHITE);
+                        Color startColor = { 0, 255, 255, 255 };
+                        DrawText( "Start", screenWidth/2 - 200, screenHeight/2 - 150, 150, startColor);
                     }
                     else if(startBlink < 20 && startBlink > 10)
                     {}
