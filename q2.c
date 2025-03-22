@@ -370,7 +370,7 @@ void* spawnBoosters(void* o)          //thread
         if(!obj->spawned)
         {
             obj->boosterSpawnDelayer++;
-            if(obj->boosterSpawnDelayer >= 500)
+            if(obj->boosterSpawnDelayer >= 370)
             {
                 obj->boosterSpawnDelayer = 0;
                 obj->sizeChanged = false;       //paddle ready for change in size
@@ -410,6 +410,7 @@ const char* intToString(int num)
     return buffer;
 }
 
+
 int main(void)
 {
     // Initialization
@@ -420,8 +421,8 @@ int main(void)
     // TODO: Initialize all required variables and load all required data here!
     InitAudioDevice();
     //---------------------------------------Textures-------------------------------------------------
-    
-    //Texture2D player = LoadTexture("Assets\\SHIP1.png");
+    Texture2D mush = LoadTexture("mush.png");
+    Texture2D skull = LoadTexture("skull.png");
 
     //---------------------------------------SOUNDS-------------------------------------------------
     Sound welcome = LoadSound("welcome.mp3");
@@ -469,6 +470,7 @@ int main(void)
 
     //screens
     int screen = 0;
+    bool end = false;
     
     //--------------------------------------------------------------------------------------
 
@@ -511,7 +513,7 @@ int main(void)
                     }
                     startBlink++;
                 }
-                else if(ballObj.start && !initStart)    //then, after 1st round, first join the previous running threads then create them again for next round when prompted
+                else if(ballObj.start && !initStart  && !end)    //then, after 1st round, first join the previous running threads then create them again for next round when prompted
                 {
                     // Only join threads if they're currently running, this prevents from threads joining even before they are created
                     if(ballObj.threadsRunning)
@@ -580,7 +582,48 @@ int main(void)
                 DrawText( intToString(sc.p1), 50, 30, 25, WHITE);
                 DrawText( intToString(sc.p2), screenWidth - (50 + 25), 30, 25, WHITE);
 
-                if(!ballObj.start)
+                if(sc.p1 == 10)
+                {
+                    if(ballObj.threadsRunning)
+                    {
+                        end = true;
+
+                        pthread_join(BallDirectionTID, NULL);
+                        pthread_join(ballBoundariesCheckTID, NULL);
+                        pthread_join(scoreUpdaterTID, NULL);
+                        pthread_join(ballCollisionTID, NULL);
+                        pthread_join(p1MoveTID, NULL);
+                        pthread_join(p2MoveTID, NULL);
+                        pthread_join(boostSpawnTID, NULL);
+                        // Mark threads as not running
+                        ballObj.threadsRunning = false; 
+                    }
+
+                    Color startColor = { 0, 255, 255, 255 };
+                    DrawText( "P1 Wins !!!", screenWidth/2 - 200, screenHeight/2 - 150, 100, startColor);
+                }
+                else if(sc.p2 == 10)
+                {
+                    if(ballObj.threadsRunning)
+                    {
+                        end = true;
+
+                        pthread_join(BallDirectionTID, NULL);
+                        pthread_join(ballBoundariesCheckTID, NULL);
+                        pthread_join(scoreUpdaterTID, NULL);
+                        pthread_join(ballCollisionTID, NULL);
+                        pthread_join(p1MoveTID, NULL);
+                        pthread_join(p2MoveTID, NULL);
+                        pthread_join(boostSpawnTID, NULL);
+                        // Mark threads as not running
+                        ballObj.threadsRunning = false; 
+                    }
+
+                    Color startColor = { 0, 255, 255, 255 };
+                    DrawText( "P2 Wins !!!", screenWidth/2 - 200, screenHeight/2 - 150, 100, startColor);
+                }
+
+                if(!ballObj.start && !end)
                 {
                     for (int y = 0; y < screenHeight; y += 20)
                     {
@@ -595,11 +638,14 @@ int main(void)
 
                     if(ballObj.spawned)
                     {
-                        DrawRectangleRec(*ballObj.big,RED);
-                        DrawRectangleRec(*ballObj.small,BLUE);
+                        DrawRectangleRec(*ballObj.big,BLACK);
+                        DrawTexturePro(mush,(Rectangle){ 0, 0, mush.width, mush.height }, *ballObj.big, (Vector2){ 0, 0 },0,WHITE);
+
+                        DrawRectangleRec(*ballObj.small,BLACK);
+                        DrawTexturePro(skull,(Rectangle){ 0, 0, skull.width, skull.height }, *ballObj.small, (Vector2){ 0, 0 },0,WHITE);
                     }
                 }
-                else
+                else if(!end)
                 {
                     if(startBlink <= 10)
                     {
