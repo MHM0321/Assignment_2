@@ -32,6 +32,11 @@ typedef struct ballInfo
     bool p1Contact;     
     bool p2Contact;
 
+    Sound reflect;
+    Sound round;
+    Sound good;
+    Sound bad;
+
 }ballInfo;
 
 ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2)   //fake constructor
@@ -51,6 +56,11 @@ ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2)   //fake constructo
     
     pp.ptr = malloc(sizeof(Rectangle));
     *(pp.ptr) = (Rectangle){ screenWidth/2, screenHeight/2 - 25, 25, 25 };
+
+    pp.reflect = LoadSound("reflect.mp3");
+    pp.round = LoadSound("round.mp3");
+    pp.good = LoadSound("good.mp3");
+    pp.bad = LoadSound("bad.mp3");
 
     return pp;
 }
@@ -123,17 +133,23 @@ void* ballBoundariesCheck(void* info)          //thread
     {
         if(obj->ptr->y <= 0)
         {
+            PlaySound(obj->reflect);
+
             obj->up = false;
             obj->down = true;
         }
         else if(obj->ptr->y >= screenHeight - 25)        //ball size cuz top left corner point is checked
         {
+            PlaySound(obj->reflect);
+
             obj->up = true;
             obj->down = false;
         }
 
         if(obj->ptr->x <= 0)
         {
+            PlaySound(obj->round);
+            
             usleep(100000);
             obj->start = true;
             obj->ptr->x = screenWidth/ 2 - 12;
@@ -149,6 +165,8 @@ void* ballBoundariesCheck(void* info)          //thread
         }
         else if(obj->ptr->x >= screenWidth - 25)        //ball size cuz top left corner point is checked
         {
+            PlaySound(obj->round);
+            
             usleep(100000);
             obj->start = true;
             obj->ptr->x = screenWidth/ 2 - 12;
@@ -201,6 +219,8 @@ void* ballCollision(void* o)          //thread
     {
         if(CheckCollisionRecs(*obj->ptr, *obj->p1))
         {
+            PlaySound(obj->reflect);
+
             obj->p1Contact = true;
             obj->p2Contact = false;
             obj->left = true;
@@ -208,6 +228,8 @@ void* ballCollision(void* o)          //thread
         }
         else if(CheckCollisionRecs(*obj->ptr, *obj->p2))
         {
+            PlaySound(obj->reflect);
+
             obj->p2Contact = true;
             obj->p1Contact = false;
             obj->left = false;
@@ -285,7 +307,8 @@ int main(void)
     //Texture2D player = LoadTexture("Assets\\SHIP1.png");
 
     //---------------------------------------SOUNDS-------------------------------------------------
-    //Sound heroic = LoadSound("Assets\\Titan GIGANTO.mp3");
+    Sound welcome = LoadSound("welcome.mp3");
+    Sound start = LoadSound("start.mp3");
 
     SetTargetFPS(60);               // Set desired framerate (frames-per-second)
 
@@ -319,9 +342,10 @@ int main(void)
     bool initStart = true;
     int rounds = 0;
 
-    int kakappoo;
     //SOUND PLAYBACK CALLS
-    
+    bool welc = false;
+
+    //screens
     int screen = 0;
     
     //--------------------------------------------------------------------------------------
@@ -338,8 +362,18 @@ int main(void)
             {
                 if(ballObj.start && initStart)  //at start of the game i.e. 1st round, only create all the threads initially when prompted
                 {
+
+                    if(!welc)
+                    {
+                        PlaySound(welcome);
+                        welc = true;
+                    }
+
                     if(IsKeyPressed(KEY_UP) || IsKeyPressed(KEY_DOWN) || IsKeyPressed(KEY_W) || IsKeyPressed(KEY_S) || IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE))
                     {
+                        StopSound(welcome);
+                        PlaySound(start);
+                        
                         ballObj.start = false;
                         initStart = false;
                         ballObj.threadsRunning = true;  // Mark threads as running
@@ -374,6 +408,8 @@ int main(void)
                         ballObj.start = false;
                         // Mark threads as running
                         ballObj.threadsRunning = true; 
+
+                        PlaySound(start);
 
                         rounds++;
                         pthread_create(&BallDirectionTID, NULL, &ballMovement, &ballObj);
