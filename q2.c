@@ -7,9 +7,20 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 #include<raylib.h>
+#include <time.h>
 
 const int screenWidth = 800;
 const int screenHeight = 600;
+
+int getRandomNumber(int min, int max)
+{
+    return min + rand() % (max - min + 1);
+}
+
+bool getRandomBool()
+{
+    return rand() % 2;
+}
 
 typedef struct ballInfo
 {
@@ -37,9 +48,14 @@ typedef struct ballInfo
     Sound good;
     Sound bad;
 
+    Rectangle *big;         //enlarge booster
+    Rectangle *small;       //shrink booster
+
+    bool spawned;       //booster call flag
+
 }ballInfo;
 
-ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2)   //fake constructor
+ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2, Rectangle *b, Rectangle *s)   //fake constructor
 {
     ballInfo pp;
 
@@ -53,6 +69,9 @@ ballInfo ballPosConstructor(Rectangle * pl1, Rectangle *pl2)   //fake constructo
     pp.p2 = pl2;
     pp.p1Contact = false;
     pp.p2Contact = false;
+    pp.big = b;
+    pp.small = s;
+    pp.spawned = false;
     
     pp.ptr = malloc(sizeof(Rectangle));
     *(pp.ptr) = (Rectangle){ screenWidth/2, screenHeight/2 - 25, 25, 25 };
@@ -156,8 +175,13 @@ void* ballBoundariesCheck(void* info)          //thread
             obj->ptr->y = screenHeight/ 2 - 12;
             obj->p1->y = (screenHeight/2) - (185/2);
             obj->p1->x = screenWidth - 50;
+            obj->p1->width = 30;
+            obj->p1->height = 185;
             obj->p2->y = (screenHeight/2) - (185/2);
             obj->p2->x = 50-30;
+            obj->p2->width = 30;
+            obj->p2->height = 185;
+            obj->spawned = false;
             obj->left = false;
             obj->right = true;
             obj->up = true;
@@ -173,8 +197,13 @@ void* ballBoundariesCheck(void* info)          //thread
             obj->ptr->y = screenHeight/ 2 - 12;
             obj->p1->y = (screenHeight/2) - (185/2);
             obj->p1->x = screenWidth - 50;
+            obj->p1->width = 30;
+            obj->p1->height = 185;
             obj->p2->y = (screenHeight/2) - (185/2);
             obj->p2->x = 50-30;
+            obj->p2->width = 30;
+            obj->p2->height = 185;
+            obj->spawned = false;
             obj->left = false;
             obj->right = true;
             obj->up = true;
@@ -235,6 +264,40 @@ void* ballCollision(void* o)          //thread
             obj->left = false;
             obj->right = true;
         }
+        //==============================KINDA SUS========================================
+        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p1Contact)
+        {
+            PlaySound(obj->good);
+            obj->spawned = false;
+            obj->big->x = -100;
+            obj->big->y = -100;
+            obj->p1->height += 50;
+        }
+        else if(CheckCollisionRecs(*obj->ptr, *obj->big) && obj->p2Contact)
+        {
+            PlaySound(obj->good);
+            obj->spawned = false;
+            obj->big->x = -100;
+            obj->big->y = -100;
+            obj->p2->height += 50;
+        }
+        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p1Contact)
+        {
+            PlaySound(obj->bad);
+            obj->spawned = false;
+            obj->small->x = -200;
+            obj->small->y = -200;
+            obj->p1->height -= 50;
+        }
+        else if(CheckCollisionRecs(*obj->ptr, *obj->small) && obj->p2Contact)
+        {
+            PlaySound(obj->bad);
+            obj->spawned = false;
+            obj->small->x = -200;
+            obj->small->y = -200;
+            obj->p2->height -= 50;
+        }
+
         usleep(16000);
     }
     return NULL;
@@ -246,13 +309,15 @@ void* p1Move(void* o)          //thread
 
     int speed = 4;
 
+
+
     while(!obj->start)
     {
         if(IsKeyDown(KEY_UP) && obj->p1->y >= 0)
         {
             obj->p1->y -= speed;
         }
-        else if(IsKeyDown(KEY_DOWN) && obj->p1->y <= screenHeight - 185)
+        else if(IsKeyDown(KEY_DOWN) && (obj->p1->height + obj->p1->y) <= screenHeight)
         {
             obj->p1->y+=speed;
         }
@@ -275,9 +340,46 @@ void* p2Move(void* o)          //thread
         {
             obj->p2->y-=speed;
         }
-        else if(IsKeyDown(KEY_S) && obj->p2->y <= screenHeight - 185)
+        else if(IsKeyDown(KEY_S) && (obj->p2->height + obj->p2->y) <= screenHeight)
         {
             obj->p2->y+=speed;
+        }
+
+        usleep(16000);
+    }
+
+    return NULL;
+}
+
+void* spawnBoosters(void* o)          //thread
+{
+    ballInfo *obj = (ballInfo*)o;
+
+    while(!obj->start)
+    {
+        if(!obj->spawned)
+        {
+            obj->spawned = true;
+            srand(time(0));
+            int randomPositionX = getRandomNumber(screenWidth/2-20, screenWidth/2+20);
+
+            srand(time(0));
+            int randomPositionY = getRandomNumber(100, screenHeight - 100);
+
+            srand(time(0));
+            bool boostType = getRandomBool();
+
+            if(boostType)
+            {
+                obj->big->x = randomPositionX;
+                obj->big->y = randomPositionY;
+            }
+            else
+            {
+                obj->small->x = randomPositionX;
+                obj->small->y = randomPositionY;
+            }
+
         }
 
         usleep(16000);
@@ -321,9 +423,11 @@ int main(void)
     //we substract length of bar from the gap because same was being added in the rightSpeed one (box starts rendering from top leftSpeed corner)
     Rectangle mid = { screenWidth/2 - 1,0,2,screenHeight };
 
+    Rectangle big = {-100,-100, 70, 70};            //boosters
+    Rectangle smol = {-200,-200, 70, 70};
 
     //--------------------------------------initial values------------------------------------
-    ballInfo ballObj = ballPosConstructor(&p1, &p2);
+    ballInfo ballObj = ballPosConstructor(&p1, &p2, &big, &smol);
     pthread_t BallDirectionTID;
     pthread_t ballBoundariesCheckTID;
     ballObj.right = true;
@@ -341,6 +445,9 @@ int main(void)
     int startBlink = 0;
     bool initStart = true;
     int rounds = 0;
+
+    pthread_t boostSpawnTID;
+
 
     //SOUND PLAYBACK CALLS
     bool welc = false;
@@ -385,6 +492,7 @@ int main(void)
                         pthread_create(&ballCollisionTID, NULL, &ballCollision, &ballObj);
                         pthread_create(&p1MoveTID, NULL, &p1Move, &ballObj);
                         pthread_create(&p2MoveTID, NULL, &p2Move, &ballObj);
+                        pthread_create(&boostSpawnTID, NULL, &spawnBoosters, &ballObj);
                     }
                     startBlink++;
                 }
@@ -399,6 +507,7 @@ int main(void)
                         pthread_join(ballCollisionTID, NULL);
                         pthread_join(p1MoveTID, NULL);
                         pthread_join(p2MoveTID, NULL);
+                        pthread_join(boostSpawnTID, NULL);
                         // Mark threads as not running
                         ballObj.threadsRunning = false; 
                     }
@@ -418,6 +527,7 @@ int main(void)
                         pthread_create(&ballCollisionTID, NULL, &ballCollision, &ballObj);
                         pthread_create(&p1MoveTID, NULL, &p1Move, &ballObj);
                         pthread_create(&p2MoveTID, NULL, &p2Move, &ballObj);
+                        pthread_create(&boostSpawnTID, NULL, &spawnBoosters, &ballObj);
                     }
                     startBlink++;
                 }
@@ -463,6 +573,12 @@ int main(void)
                     DrawText( intToString(rounds), screenWidth/2 + 70, 30, 50, WHITE);
 
                     DrawRectangleRec(*(ballObj.ptr), WHITE);
+
+                    if(ballObj.spawned)
+                    {
+                        DrawRectangleRec(*ballObj.big,RED);
+                        DrawRectangleRec(*ballObj.small,BLUE);
+                    }
                 }
                 else
                 {
