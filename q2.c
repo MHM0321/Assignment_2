@@ -319,6 +319,7 @@ int main(void)
     bool initStart = true;
     int rounds = 0;
 
+    int kakappoo;
     //SOUND PLAYBACK CALLS
     
     int screen = 0;
