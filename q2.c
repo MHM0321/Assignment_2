@@ -8,6 +8,7 @@
 #include<sys/wait.h>
 #include<raylib.h>
 #include <time.h>
+#include<math.h>
 
 const int screenWidth = 800;
 const int screenHeight = 600;
@@ -20,6 +21,78 @@ int getRandomNumber(int min, int max)
 int getRandomBooster()
 {
     return rand() % 4;
+}
+
+
+// Add these at the top with your other structs
+typedef struct Star {
+    float x;
+    float y;
+    float speed;
+    float radius;
+    Color color;
+} Star;
+
+#define MAX_STARS 200
+
+// Initialize stars array and related variables in main() before your game loop
+Star stars[MAX_STARS];
+Texture2D backgroundTexture = { 0 };
+
+void InitStars() {
+    for (int i = 0; i < MAX_STARS; i++) {
+        stars[i].x = GetRandomValue(0, screenWidth);
+        stars[i].y = GetRandomValue(0, screenHeight);
+        stars[i].speed = GetRandomValue(1, 3) / 2.0f;
+        stars[i].radius = GetRandomValue(1, 3) / 2.0f;
+        
+        // Random star colors - mostly white/blue with occasional yellow/red
+        int brightness = GetRandomValue(200, 255);
+        if (GetRandomValue(0, 10) > 8) { // 20% chance of colored stars
+            if (GetRandomValue(0, 1)) {
+                // Yellow/red stars
+                stars[i].color = (Color){ brightness, GetRandomValue(180, brightness), GetRandomValue(50, 150), brightness };
+            } else {
+                // Blue stars
+                stars[i].color = (Color){ GetRandomValue(50, 150), GetRandomValue(150, 200), brightness, brightness };
+            }
+        } else {
+            // White/blue-ish stars
+            stars[i].color = (Color){ GetRandomValue(200, brightness), GetRandomValue(200, brightness), brightness, brightness };
+        }
+    }
+}
+
+void UpdateStars() {
+    for (int i = 0; i < MAX_STARS; i++) {
+        // Move stars from right to left
+        stars[i].x -= stars[i].speed;
+        
+        // Reset star position when it goes off screen
+        if (stars[i].x < 0) {
+            stars[i].x = screenWidth;
+            stars[i].y = GetRandomValue(0, screenHeight);
+        }
+    }
+}
+
+void DrawStarfield() {
+    // Draw the dark blue background
+    DrawRectangle(0, 0, screenWidth, screenHeight, (Color){ 0, 0, 20, 255 });
+    
+    // Draw stars
+    for (int i = 0; i < MAX_STARS; i++) {
+        // Use DrawCircleV for smoother stars
+        DrawCircleV((Vector2){ stars[i].x, stars[i].y }, stars[i].radius, stars[i].color);
+        
+        // Add a subtle glow effect for some stars
+        if (GetRandomValue(0, 100) < 2) { // Occasional twinkling
+            float glowRadius = stars[i].radius * (1.0f + sinf(GetTime() * 5) * 0.5f);
+            Color glowColor = stars[i].color;
+            glowColor.a = 100;
+            DrawCircleV((Vector2){ stars[i].x, stars[i].y }, glowRadius * 2, glowColor);
+        }
+    }
 }
 
 typedef struct ballInfo
@@ -529,6 +602,8 @@ int main(void)
 
     InitWindow(screenWidth, screenHeight, "Ping Pong");
 
+    InitStars();
+
     // TODO: Initialize all required variables and load all required data here!
     InitAudioDevice();
     //---------------------------------------Textures-------------------------------------------------
@@ -677,14 +752,14 @@ int main(void)
         //----------------------------------------------------------------------------------
 
 
-
+        UpdateStars();
 
 
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-        ClearBackground(BLACK);
+        DrawStarfield();
 
         switch (screen)
         {
@@ -754,9 +829,13 @@ int main(void)
 
                 if(!ballObj.start && !end)
                 {
+                    // Draw dotted line in center with glow effect
                     for (int y = 0; y < screenHeight; y += 20)
                     {
-                        DrawRectangle(screenWidth / 2 - 1, y, 2, 10, LIGHTGRAY);
+                        // Draw a glow effect first (a larger, more transparent rectangle)
+                        DrawRectangle(screenWidth / 2 - 2, y, 4, 10, (Color){ 200, 200, 255, 40 });
+                        // Then draw the actual line
+                        DrawRectangle(screenWidth / 2 - 1, y, 2, 10, (Color){ 220, 220, 255, 200 });
                     }
 
                     Color roundColor = { 0, 255, 255, 255 };

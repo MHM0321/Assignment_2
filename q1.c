@@ -16,6 +16,34 @@ typedef struct params
 
 }params;
 
+void* sort(void* obj)
+{
+    params *ptr = (params *)obj;
+
+    for (int i = 1; i < ptr->currSize; i++) //insertion sort
+    {
+        int key = ptr->p[i];
+        int j = i - 1;
+
+        while (j >= 0 && ptr->p[j] > key)
+        {
+            ptr->p[j + 1] = ptr->p[j];
+            j--;
+        }
+        ptr->p[j + 1] = key;
+    }
+
+
+
+}
+
+void* merge(void* obj)
+{
+    params *p = (params *)obj;
+
+
+}
+
 
 int main()
 {
@@ -37,9 +65,16 @@ int main()
     scanf("%d", &subCont);
 
 
+    params obj;
+    obj.currSize = size;
+    obj.p = arr;
+    obj.k = subCont;
 
 
-
+    for(int i = 0; i < subCont; i++)
+    {
+        
+    }
 
 
 
