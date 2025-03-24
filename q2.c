@@ -24,8 +24,9 @@ int getRandomBooster()
 }
 
 
-// Add these at the top with your other structs
-typedef struct Star {
+//----------------------------------------------------STARS---------------------------------------------------
+typedef struct Star
+{
     float x;
     float y;
     float speed;
@@ -34,13 +35,13 @@ typedef struct Star {
 } Star;
 
 #define MAX_STARS 200
-
-// Initialize stars array and related variables in main() before your game loop
 Star stars[MAX_STARS];
 Texture2D backgroundTexture = { 0 };
 
-void InitStars() {
-    for (int i = 0; i < MAX_STARS; i++) {
+void InitStars()
+{
+    for (int i = 0; i < MAX_STARS; i++)
+    {
         stars[i].x = GetRandomValue(0, screenWidth);
         stars[i].y = GetRandomValue(0, screenHeight);
         stars[i].speed = GetRandomValue(1, 3) / 2.0f;
@@ -48,45 +49,55 @@ void InitStars() {
         
         // Random star colors - mostly white/blue with occasional yellow/red
         int brightness = GetRandomValue(200, 255);
-        if (GetRandomValue(0, 10) > 8) { // 20% chance of colored stars
-            if (GetRandomValue(0, 1)) {
+        if (GetRandomValue(0, 10) > 8)
+        { // 20% chance of colored stars
+            if (GetRandomValue(0, 1))
+            {
                 // Yellow/red stars
                 stars[i].color = (Color){ brightness, GetRandomValue(180, brightness), GetRandomValue(50, 150), brightness };
-            } else {
+            } else
+            {
                 // Blue stars
                 stars[i].color = (Color){ GetRandomValue(50, 150), GetRandomValue(150, 200), brightness, brightness };
             }
-        } else {
+        } else
+        {
             // White/blue-ish stars
             stars[i].color = (Color){ GetRandomValue(200, brightness), GetRandomValue(200, brightness), brightness, brightness };
         }
     }
 }
 
-void UpdateStars() {
-    for (int i = 0; i < MAX_STARS; i++) {
+void UpdateStars()
+{
+    for (int i = 0; i < MAX_STARS; i++)
+    {
         // Move stars from right to left
         stars[i].x -= stars[i].speed;
         
         // Reset star position when it goes off screen
-        if (stars[i].x < 0) {
+        if (stars[i].x < 0)
+        {
             stars[i].x = screenWidth;
             stars[i].y = GetRandomValue(0, screenHeight);
         }
     }
 }
 
-void DrawStarfield() {
+void DrawStarfield()
+{
     // Draw the dark blue background
     DrawRectangle(0, 0, screenWidth, screenHeight, (Color){ 0, 0, 20, 255 });
     
     // Draw stars
-    for (int i = 0; i < MAX_STARS; i++) {
-        // Use DrawCircleV for smoother stars
+    for (int i = 0; i < MAX_STARS; i++)
+    {
         DrawCircleV((Vector2){ stars[i].x, stars[i].y }, stars[i].radius, stars[i].color);
         
         // Add a subtle glow effect for some stars
-        if (GetRandomValue(0, 100) < 2) { // Occasional twinkling
+        if (GetRandomValue(0, 100) < 2)
+        {
+            // Occasional twinkling
             float glowRadius = stars[i].radius * (1.0f + sinf(GetTime() * 5) * 0.5f);
             Color glowColor = stars[i].color;
             glowColor.a = 100;
@@ -94,6 +105,7 @@ void DrawStarfield() {
         }
     }
 }
+//----------------------------------------------------STARS--------------------------------------------------
 
 typedef struct ballInfo
 {
@@ -602,7 +614,7 @@ int main(void)
 
     InitWindow(screenWidth, screenHeight, "Ping Pong");
 
-    InitStars();
+    InitStars();    //stars
 
     // TODO: Initialize all required variables and load all required data here!
     InitAudioDevice();
@@ -759,7 +771,7 @@ int main(void)
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
-        DrawStarfield();
+        DrawStarfield();    //instead of clear background
 
         switch (screen)
         {
@@ -902,8 +914,8 @@ int main(void)
     // De-Initialization
     //--------------------------------------------------------------------------------------
     
-    // Make sure to join any running threads before exiting
-    if(ballObj.threadsRunning) {
+    if(ballObj.threadsRunning)
+    {
         ballObj.start = true;  // Signal threads to stop
         usleep(50000);  // Give threads time to notice the signal
         pthread_join(BallDirectionTID, NULL);
@@ -914,10 +926,22 @@ int main(void)
         pthread_join(p2MoveTID, NULL);
     }
     
-    //UnloadTexture(one);
-    
-    //UnloadSound(op);
+
     // TODO: Unload all loaded data (textures, fonts, audio) here!
+    UnloadTexture(mush);
+    UnloadTexture(skull);
+    UnloadTexture(fest);
+    UnloadTexture(mooscles);
+
+    UnloadSound(welcome);
+    UnloadSound(start);
+    UnloadSound(ballObj.reflect);
+    UnloadSound(ballObj.round);
+    UnloadSound(ballObj.good);
+    UnloadSound(ballObj.bad);
+    UnloadSound(ballObj.speedSound);
+    UnloadSound(ballObj.strong);
+    UnloadSound(ballObj.blast);
 
     //free pointers
     free(ballObj.ptr);

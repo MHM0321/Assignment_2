@@ -7,76 +7,158 @@
 #include<sys/types.h>
 #include<sys/wait.h>
 
-
-typedef struct params
+typedef struct
 {
-    int currSize;
-    int*p;
-    int k;
+    int* arr;
+    int first;
+    int second;
+} SortArgs;
 
-}params;
 
-void* sort(void* obj)
+void insertionSort(int* arr, int first, int second)
 {
-    params *ptr = (params *)obj;
-
-    for (int i = 1; i < ptr->currSize; i++) //insertion sort
+    for (int i = first + 1; i <= second; i++)
     {
-        int key = ptr->p[i];
+        int key = arr[i];
         int j = i - 1;
-
-        while (j >= 0 && ptr->p[j] > key)
+        while (j >= first && arr[j] > key)
         {
-            ptr->p[j + 1] = ptr->p[j];
+            arr[j + 1] = arr[j];
             j--;
         }
-        ptr->p[j + 1] = key;
+        arr[j + 1] = key;
+    }
+}
+
+
+void* sortThread(void* args)        //thread
+{
+    SortArgs* data = (SortArgs*)args;
+    insertionSort(data->arr, data->first, data->second);
+    pthread_exit(NULL);
+}
+
+
+void merge(int* arr, int first, int mid, int second)
+{
+    int n1 = mid - first + 1;
+    int n2 = second - mid;
+    int* firstArr = (int*)malloc(n1 * sizeof(int));
+    int* secondArr = (int*)malloc(n2 * sizeof(int));
+
+    for (int i = 0; i < n1; i++)
+    {
+        firstArr[i] = arr[first + i];
+    }
+    for (int i = 0; i < n2; i++)
+    {
+        secondArr[i] = arr[mid + 1 + i];
     }
 
+    int i = 0, j = 0, k = first;
+    while (i < n1 && j < n2)
+    {
+        if (firstArr[i] <= secondArr[j])
+        {
+            arr[k++] = firstArr[i++];
+        }
+        else
+        {
+            arr[k++] = secondArr[j++];
+        }
+    }
 
+    while (i < n1) arr[k++] = firstArr[i++];
+    while (j < n2) arr[k++] = secondArr[j++];
 
+    free(firstArr);
+    free(secondArr);
 }
 
-void* merge(void* obj)
+
+void* mergeThread(void* args)       //thread
 {
-    params *p = (params *)obj;
-
-
+    SortArgs* data = (SortArgs*)args;
+    int mid = (data->first + data->second) / 2;
+    merge(data->arr, data->first, mid, data->second);
+    pthread_exit(NULL);
 }
-
 
 int main()
 {
-    pthread_t TID;
-    int size;
-    printf("Give array size :");
-    scanf("%d", &size);
+    printf("Give size of array : ");
+    int n;
+    scanf("%d", &n);
+    int arr[n];
 
-    int *arr = (int *)malloc(sizeof(int)*size);
-
-    printf("\nGive array content :\n");
-    for(int i = 0;i<size;i++)
+    printf("\nGive elements of the array :\n");
+    for(int i = 0;i<n;i++)
     {
         scanf("%d", &arr[i]);
     }
+    
+    int k;
+    printf("Give number of subarrays : ");
+    scanf("%d", &k);
+    
 
-    printf("Give sub-array number :");
-    int subCont;
-    scanf("%d", &subCont);
-
-
-    params obj;
-    obj.currSize = size;
-    obj.p = arr;
-    obj.k = subCont;
-
-
-    for(int i = 0; i < subCont; i++)
-    {
-        
+    if (n < k) {
+        printf("k should be <= array size\n");
+        return 1;
     }
 
+    int subSize = (n + k - 1) / k;      // sze of each subarray
+    pthread_t sortThreads[k];
+    SortArgs sortArgs[k];
 
+    for (int i = 0; i < k; i++)
+    {
+        sortArgs[i].arr = arr;
+        sortArgs[i].first = i * subSize;
+        sortArgs[i].second = (i + 1) * subSize - 1;
+        if (sortArgs[i].second >= n)
+        {
+            sortArgs[i].second = n - 1;
+        }
+
+        pthread_create(&sortThreads[i], NULL, sortThread, &sortArgs[i]);
+    }
+
+    for (int i = 0; i < k; i++) pthread_join(sortThreads[i], NULL);
+
+    int numSubarrays = k;
+    while (numSubarrays > 1)
+    {
+        int newNumSubarrays = numSubarrays / 2;
+        pthread_t mergeThreads[newNumSubarrays];
+        SortArgs mergeArgs[newNumSubarrays];
+
+        for (int i = 0; i < newNumSubarrays; i++)
+        {
+            mergeArgs[i].arr = arr;
+            mergeArgs[i].first = i * 2 * subSize;
+            mergeArgs[i].second = (i * 2 + 2) * subSize - 1;
+            if (mergeArgs[i].second >= n) mergeArgs[i].second = n - 1;
+
+            pthread_create(&mergeThreads[i], NULL, mergeThread, &mergeArgs[i]);
+        }
+
+        for (int i = 0; i < newNumSubarrays; i++)
+        {
+            pthread_join(mergeThreads[i], NULL);
+        }
+
+        numSubarrays /= 2;
+        subSize *= 2;
+    }
+
+    
+    printf("Final Sorted Array: ");
+    for (int i = 0; i < n; i++)
+    {
+        printf("%d ", arr[i]);
+    }
+    printf("\n");
 
     return 0;
 }
